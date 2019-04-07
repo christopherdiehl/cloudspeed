@@ -43,7 +43,8 @@ func createStack(session *session.Session, template string) error {
 }
 
 func main() {
-	var templateLocation = flag.String("template-location", "", "the template file location")
+	var templateLocation = flag.String("template", "", "the file location of the template")
+	flag.Parse()
 	if *templateLocation == "" {
 		color.Red("Please specify the location of the template file")
 		os.Exit(1)
