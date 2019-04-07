@@ -24,24 +24,41 @@ func getTemplate(location string) (string, error) {
 	return string(b), nil
 }
 
-func createStack(session *session.Session, template string) error {
-	svc := cloudformation.New(session, aws.NewConfig().WithRegion(*session.Config.Region))
-
+func createStack(cf *cloudformation.CloudFormation, template string) (string, error) {
 	input := &cloudformation.CreateStackInput{
 		StackName:    aws.String("CloudValidate_Temp"),
 		TemplateBody: aws.String(template),
 	}
 	if err := input.Validate(); err != nil {
-		return err
+		return "", err
 	}
-	output, err := svc.CreateStack(input)
+	output, err := cf.CreateStack(input)
 	if err != nil {
-		return err
+		return "", err
 	}
 	color.Green(output.String())
-	return nil
+	return *output.StackId, nil
 }
 
+// describeStack checks the current status of the stack and returns an error if the stack
+func describeStack(cf *cloudformation.CloudFormation, stackID string) error {
+	out, err := cf.DescribeStacks(&cloudformation.DescribeStacksInput{
+		NextToken: aws.String("1"),
+		StackName: aws.String(stackID),
+	})
+	fmt.Printf("%v\n", *out)
+	fmt.Println(err.Error())
+	return err
+}
+
+// deleteStack deletes the current stack and returns an error if failing to do so
+func deleteStack(cf *cloudformation.CloudFormation, stackID string) error {
+	out, err := cf.DeleteStack(&cloudformation.DeleteStackInput{
+		StackName: aws.String(stackID),
+	})
+	fmt.Printf("%v\n", out)
+	return err
+}
 func main() {
 	var templateLocation = flag.String("template-location", "", "the template file location")
 	if *templateLocation == "" {
@@ -53,6 +70,26 @@ func main() {
 		color.Red(err.Error())
 		os.Exit(1)
 	}
-	fmt.Println(template)
-	fmt.Println("HELLO WORLD")
+	session, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-east-1"),
+	})
+	if err != nil {
+		color.Red(err.Error())
+		os.Exit(1)
+	}
+	cf := cloudformation.New(session, aws.NewConfig().WithRegion(*session.Config.Region))
+	stackID, err := createStack(cf, template)
+	if err != nil {
+		color.Red(err.Error())
+		os.Exit(1)
+	}
+	err = describeStack(cf, stackID)
+	for err != nil {
+		fmt.Println(err.Error())
+		err = describeStack(cf, stackID)
+	}
+	fmt.Println("Deleting stack")
+	if err = deleteStack(cf, stackID); err != nil {
+		fmt.Println("stackId ", stackID, " failed to delete with error: ", err.Error())
+	}
 }
