@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  EC2I4CB89:
+    Type: 'AWS::EC2::Instance'
+    Properties: {}
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 160b14ea-9b7f-43fb-b1bf-889a21e1b156
+  EC2IG2GKPT:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties: {}
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 6e2f700e-8622-445b-955d-82f169f27a74
