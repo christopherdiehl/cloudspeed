@@ -20,6 +20,18 @@ type Stack struct {
 	ID       string // id of stack
 }
 
+// StackError is an error implementation that includes failure reason, status, and stack
+type StackError struct {
+	Stack       *Stack
+	Reason      string
+	Status      string
+	StackEvents []*cloudformation.StackEvent
+}
+
+func (e StackError) Error() string {
+	return fmt.Sprintf("%v failed\n Status: %v. Reason: %v.\n Events: %v", *e.Stack, e.Status, e.Reason, e.StackEvents)
+}
+
 /*
  * getTemplate reads in the template file specified in location
  * returns the template file as a string or an error
@@ -49,22 +61,33 @@ func (stack *Stack) create(cf *cloudformation.CloudFormation) (string, error) {
 	return *output.StackId, nil
 }
 
-// describe checks the current status of the stack and returns an error if the stack
-func (stack *Stack) describe(cf *cloudformation.CloudFormation) error {
+// describe checks the current status of the stack
+// returns bool to indicate if successfully created and an error to describe the stack failure
+func (stack *Stack) describe(cf *cloudformation.CloudFormation) (bool, error) {
 	for {
-		out, err := cf.DescribeStacks(&cloudformation.DescribeStacksInput{
+		out, err := cf.DescribeStackEvents(&cloudformation.DescribeStackEventsInput{
 			NextToken: aws.String("1"),
 			StackName: aws.String(stack.ID),
 		})
 
 		if err != nil {
 			fmt.Println(err.Error())
-			return err
+			return false, err
 		}
-		if *out.Stacks[0].StackStatus != "CREATE_IN_PROGRESS" {
-			return nil
+		for _, event := range out.StackEvents {
+			if *event.ResourceStatus == "CREATE_FAILED" {
+				return false, StackError{
+					Stack:       stack,
+					Reason:      *event.ResourceStatusReason,
+					Status:      *event.ResourceStatus,
+					StackEvents: out.StackEvents,
+				}
+			}
+			if *event.ResourceStatus == "CREATE_COMPLETE" {
+				return true, nil
+			}
 		}
-		time.Sleep(10 * time.Second)
+		return false, nil
 	}
 
 }
@@ -111,13 +134,18 @@ func main() {
 		os.Exit(1)
 	}
 	stack.ID = stackID
-	err = stack.describe(cf)
-	for err != nil {
-		color.Red("Failed to describe stack")
-		color.Red(err.Error())
-		err = stack.describe(cf)
+	success, err := stack.describe(cf)
+	for err != nil || success == false {
+		if err != nil { // if it errors out don't retry, instead delete stack
+			color.Red("Failed to describe stack")
+			color.Red(err.Error())
+			break
+		}
+		success, err = stack.describe(cf)
+		time.Sleep(5 * time.Second)
 	}
-	if persist == true {
+	// persist should only be considered if the template doesn't fail
+	if persist == true && err != nil {
 		return
 	}
 	color.Yellow("Deleting stack")
