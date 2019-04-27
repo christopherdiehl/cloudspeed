@@ -99,17 +99,26 @@ func (stack *Stack) delete(cf *cloudformation.CloudFormation) error {
 	})
 	return err
 }
+
+// load JSON parameters of Parameter type
+func loadParameters(location string) []*cloudformation.Parameter {
+	return nil
+}
 func main() {
 	var templateLocation = flag.String("template", "", "the file location of the template")
+	var parameterLocation = flag.String("parameters", "", "the location of the JSON parameter file. Should contain a JSON array of cloudformation.Parameter objects. See examples/parameters.json for reference. ")
 	var stackName = flag.String("name", "CloudValidate", "the name of the stack to create. Defaults to CloudValidate")
 	var persist = *flag.Bool("persist", false, "persist will persist the stack if successful. Defaults to false, deleting the stack after completion")
 	flag.Parse()
-	fmt.Println(persist)
 	if *templateLocation == "" {
 		color.Red("Please specify the location of the template file")
 		os.Exit(1)
 	}
 	template, err := getTemplate(*templateLocation)
+	if *parameterLocation != "" {
+		color.Yellow("Loading parameters")
+
+	}
 	if err != nil {
 		color.Red(err.Error())
 		os.Exit(1)
