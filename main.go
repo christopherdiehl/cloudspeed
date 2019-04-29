@@ -16,9 +16,9 @@ import (
 
 // Stack is a helper struct to store  the template body, stack id, and stack name in one place
 type Stack struct {
-	Template string // template body
-	Name     string // name of stack
-	ID       string // id of stack
+	Template   string // template body
+	Name       string // name of stack
+	ID         string // id of stack
 	Parameters []*cloudformation.Parameter
 }
 
@@ -120,7 +120,7 @@ func main() {
 	var templateLocation = flag.String("template", "", "the file location of the template")
 	var parameterLocation = flag.String("parameters", "", "the location of the JSON parameter file. Should contain a JSON array of cloudformation.Parameter objects. See examples/parameters.json for reference. ")
 	var stackName = flag.String("name", "CloudValidate", "the name of the stack to create. Defaults to CloudValidate")
-	var persist = *flag.Bool("persist", false, "persist will persist the stack if successful. Defaults to false, deleting the stack after completion")
+	var persist = flag.Bool("persist", false, "persist will persist the stack if successful. Defaults to false, deleting the stack after completion")
 	flag.Parse()
 	var parameters []*cloudformation.Parameter
 	if *templateLocation == "" {
@@ -142,10 +142,10 @@ func main() {
 		}
 	}
 	stack := &Stack{
-		Template: template,
-		Name:     *stackName,
-		ID:       "",
-		Parameters: parameters
+		Template:   template,
+		Name:       *stackName,
+		ID:         "",
+		Parameters: parameters,
 	}
 	session, err := session.NewSession(&aws.Config{
 		Region: aws.String("us-east-1"),
@@ -172,8 +172,11 @@ func main() {
 		success, err = stack.describe(cf)
 		time.Sleep(5 * time.Second)
 	}
+	if err != nil {
+		color.Green("Successfully completed creating " + stack.Name)
+	}
 	// persist should only be considered if the template doesn't fail
-	if persist == true && err != nil {
+	if *persist == true && err == nil {
 		return
 	}
 	color.Yellow("Deleting stack")
