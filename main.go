@@ -67,6 +67,26 @@ func (stack *Stack) create(cf *cloudformation.CloudFormation) (string, error) {
 // returns bool to indicate if successfully created and an error to describe the stack failure
 func (stack *Stack) describe(cf *cloudformation.CloudFormation) (bool, error) {
 	for {
+		dsOut, err := cf.DescribeStacks(&cloudformation.DescribeStacksInput{
+			NextToken: aws.String("1"),
+			StackName: aws.String(stack.ID),
+		})
+		for i, cfStack := range dsOut.Stacks {
+			if i > 0 {
+				return false, StackError{
+					Stack:       stack,
+					Reason:      "Multiple stacks returned",
+					Status:      "AWS ERROR",
+					StackEvents: nil,
+				}
+			}
+			fmt.Println(cfStack)
+			if *cfStack.StackStatus == "CREATE_COMPLETE" {
+				return true, nil
+			} 
+			if *cfStack.StackStatus == "CREATE_FAILED"
+
+		}
 		out, err := cf.DescribeStackEvents(&cloudformation.DescribeStackEventsInput{
 			NextToken: aws.String("1"),
 			StackName: aws.String(stack.ID),
