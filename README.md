@@ -1,13 +1,22 @@
 # CloudValidate
 
-CloudValidate aims to alleviate the frustration of debugging cloudformation templates. Currently the `aws cloudformation validate-template` tool just validates the file is either valid JSON or valid YAML. It doesn't validate the properties and configuration.
+CloudValidate aims to alleviate the frustration of debugging cloudformation templates. Currently the `aws cloudformation validate-template` tool just validates the file is either valid JSON or valid YAML. It doesn't validate the properties and configuration. This tool ensures the template is valid by actually creating the stack with the associated infrastructure. 
 
-This tool accepts a path to a cloudformation template file location, and attempts to create the cloudformation stack with project name: CloudValidate_Temp. If the stack fails to create, the tool then outputs the errors to the console. CloudValidate will delete the stack once created _or_ failed.
+CloudValidate is more than a simple validation tool. It was specifically created to reduce stack debugging and creation time. Therefore, if the stack fails to create, the tool then outputs all of the stack events to the console before deletion. If you would like to keep the stack around after it succeeds, pass in the persist flag to ensure the infrastructure remains untouched. 
 
 ## Goals
+`This project is in active(ish) development and breaking changes will most likely not occur. Using the project may incur charges against your AWS account`
 
-- Allow custom stack project names.
-- Allow additional parameters to the template file.
-- Pass in region to create the stack.
 
-`This project is in active development and breaking changes will occur. Additionally, using the project may incur charges against your AWS account`
+## Usage 
+```
+Usage of cloudvalidate
+  -name string (optional)
+        the name of the stack to create. Defaults to CloudValidate (default "CloudValidate")
+  -parameters string (optional)
+        the location of the JSON parameter file. Should contain a JSON array of cloudformation.Parameter objects. See examples/parameters.json for reference. 
+  -persist boolean (optional)
+        persist will persist the stack if successful. Defaults to false, deleting the stack after completion
+  -template string (required)
+        the file location of the template
+```

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -15,9 +16,10 @@ import (
 
 // Stack is a helper struct to store  the template body, stack id, and stack name in one place
 type Stack struct {
-	Template string // template body
-	Name     string // name of stack
-	ID       string // id of stack
+	Template   string // template body
+	Name       string // name of stack
+	ID         string // id of stack
+	Parameters []*cloudformation.Parameter
 }
 
 // StackError is an error implementation that includes failure reason, status, and stack
@@ -33,10 +35,10 @@ func (e StackError) Error() string {
 }
 
 /*
- * getTemplate reads in the template file specified in location
+ * readFile reads in the template file specified in location
  * returns the template file as a string or an error
  */
-func getTemplate(location string) (string, error) {
+func readFile(location string) (string, error) {
 	b, err := ioutil.ReadFile(location)
 	if err != nil {
 		return "", err
@@ -48,7 +50,7 @@ func (stack *Stack) create(cf *cloudformation.CloudFormation) (string, error) {
 	input := &cloudformation.CreateStackInput{
 		StackName:    aws.String(stack.Name),
 		TemplateBody: aws.String(stack.Template),
-		Parameters:   nil,
+		Parameters:   stack.Parameters,
 	}
 	if err := input.Validate(); err != nil {
 		return "", err
@@ -99,25 +101,51 @@ func (stack *Stack) delete(cf *cloudformation.CloudFormation) error {
 	})
 	return err
 }
+
+// return parameters of cloudformation.Parameter type located in location file
+// @param location is the paramters file location
+// @returns slice of cloudformation.Parameter pointers and an error
+func loadParameters(location string) ([]*cloudformation.Parameter, error) {
+	fileBody, err := readFile(location)
+	if err != nil {
+		return nil, err
+	}
+	var parameters []*cloudformation.Parameter
+	if err = json.Unmarshal([]byte(fileBody), &parameters); err != nil {
+		return nil, err
+	}
+	return parameters, nil
+}
 func main() {
 	var templateLocation = flag.String("template", "", "the file location of the template")
+	var parameterLocation = flag.String("parameters", "", "the location of the JSON parameter file. Should contain a JSON array of cloudformation.Parameter objects. See examples/parameters.json for reference. ")
 	var stackName = flag.String("name", "CloudValidate", "the name of the stack to create. Defaults to CloudValidate")
-	var persist = *flag.Bool("persist", false, "persist will persist the stack if successful. Defaults to false, deleting the stack after completion")
+	var persist = flag.Bool("persist", false, "persist will persist the stack if successful. Defaults to false, deleting the stack after completion")
 	flag.Parse()
-	fmt.Println(persist)
+	var parameters []*cloudformation.Parameter
 	if *templateLocation == "" {
 		color.Red("Please specify the location of the template file")
 		os.Exit(1)
 	}
-	template, err := getTemplate(*templateLocation)
+	template, err := readFile(*templateLocation)
 	if err != nil {
 		color.Red(err.Error())
 		os.Exit(1)
 	}
+	if *parameterLocation != "" {
+		color.Yellow("Loading parameters")
+		parameters, err = loadParameters(*parameterLocation)
+		if err != nil {
+			color.Red(err.Error())
+			color.Yellow("Attempting to create stack without parameters")
+			parameters = nil
+		}
+	}
 	stack := &Stack{
-		Template: template,
-		Name:     *stackName,
-		ID:       "",
+		Template:   template,
+		Name:       *stackName,
+		ID:         "",
+		Parameters: parameters,
 	}
 	session, err := session.NewSession(&aws.Config{
 		Region: aws.String("us-east-1"),
@@ -144,8 +172,11 @@ func main() {
 		success, err = stack.describe(cf)
 		time.Sleep(5 * time.Second)
 	}
+	if err != nil {
+		color.Green("Successfully completed creating " + stack.Name)
+	}
 	// persist should only be considered if the template doesn't fail
-	if persist == true && err != nil {
+	if *persist == true && err == nil {
 		return
 	}
 	color.Yellow("Deleting stack")
