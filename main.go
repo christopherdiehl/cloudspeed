@@ -87,11 +87,10 @@ func (stack *Stack) describe(cf *cloudformation.CloudFormation) (bool, error) {
 				StackEvents: nil,
 			}
 		}
-		fmt.Println(*cfStack.StackStatus)
 		if *cfStack.StackStatus == "CREATE_COMPLETE" {
 			return true, nil
 		}
-		if *cfStack.StackStatus == "ROLLBACK_INITIATED" {
+		if *cfStack.StackStatus == "ROLLBACK_INITIATED" || *cfStack.StackStatus == "CREATE_FAILED" || *cfStack.StackStatus == "ROLLBACK_IN_PROGRESS" {
 			out, err := cf.DescribeStackEvents(&cloudformation.DescribeStackEventsInput{
 				NextToken: aws.String("1"),
 				StackName: aws.String(stack.ID),
@@ -188,7 +187,7 @@ func main() {
 		success, err = stack.describe(cf)
 		time.Sleep(5 * time.Second)
 	}
-	if err != nil {
+	if err == nil {
 		color.Green("Successfully completed creating " + stack.Name)
 	}
 	// persist should only be considered if the template doesn't fail
