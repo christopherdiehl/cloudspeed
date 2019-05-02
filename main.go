@@ -66,32 +66,47 @@ func (stack *Stack) create(cf *cloudformation.CloudFormation) (string, error) {
 // describe checks the current status of the stack
 // returns bool to indicate if successfully created and an error to describe the stack failure
 func (stack *Stack) describe(cf *cloudformation.CloudFormation) (bool, error) {
-	for {
-		out, err := cf.DescribeStackEvents(&cloudformation.DescribeStackEventsInput{
-			NextToken: aws.String("1"),
-			StackName: aws.String(stack.ID),
-		})
-
-		if err != nil {
-			fmt.Println(err.Error())
-			return false, err
+	dsOut, err := cf.DescribeStacks(&cloudformation.DescribeStacksInput{
+		NextToken: aws.String("1"),
+		StackName: aws.String(stack.ID),
+	})
+	if err != nil {
+		return false, StackError{
+			Stack:       stack,
+			Reason:      err.Error(),
+			Status:      "AWS ERROR",
+			StackEvents: nil,
 		}
-		for _, event := range out.StackEvents {
-			if *event.ResourceStatus == "CREATE_FAILED" {
-				return false, StackError{
-					Stack:       stack,
-					Reason:      *event.ResourceStatusReason,
-					Status:      *event.ResourceStatus,
-					StackEvents: out.StackEvents,
-				}
-			}
-			if *event.ResourceStatus == "CREATE_COMPLETE" {
-				return true, nil
-			}
-		}
-		return false, nil
 	}
-
+	for i, cfStack := range dsOut.Stacks {
+		if i > 0 {
+			return false, StackError{
+				Stack:       stack,
+				Reason:      "Multiple stacks returned",
+				Status:      "AWS ERROR",
+				StackEvents: nil,
+			}
+		}
+		if *cfStack.StackStatus == "CREATE_COMPLETE" {
+			return true, nil
+		}
+		if *cfStack.StackStatus == "ROLLBACK_INITIATED" || *cfStack.StackStatus == "CREATE_FAILED" || *cfStack.StackStatus == "ROLLBACK_IN_PROGRESS" {
+			out, err := cf.DescribeStackEvents(&cloudformation.DescribeStackEventsInput{
+				NextToken: aws.String("1"),
+				StackName: aws.String(stack.ID),
+			})
+			if err != nil {
+				return false, err
+			}
+			return false, StackError{
+				Stack:       stack,
+				Reason:      "Multiple stacks returned",
+				Status:      *cfStack.StackStatus,
+				StackEvents: out.StackEvents,
+			}
+		}
+	}
+	return false, nil
 }
 
 // delete deletes the current stack and returns an error if failing to do so
@@ -172,7 +187,7 @@ func main() {
 		success, err = stack.describe(cf)
 		time.Sleep(5 * time.Second)
 	}
-	if err != nil {
+	if err == nil {
 		color.Green("Successfully completed creating " + stack.Name)
 	}
 	// persist should only be considered if the template doesn't fail
