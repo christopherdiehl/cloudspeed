@@ -17,5 +17,5 @@ Usage of cloudspeed
         the file location of the template
 ```
 
-
+Creates a stack named mywebsite, which is persisted if successfully created and provided the parameters found in `templates/test-s3-website-parameters.json`: 
 ` cloudspeed -template templates/test-s3website.yaml -name mywebsite -persist=true -parameters templates/test-s3website-parameters.json`
