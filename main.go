@@ -134,7 +134,7 @@ func loadParameters(location string) ([]*cloudformation.Parameter, error) {
 func main() {
 	var templateLocation = flag.String("template", "", "the file location of the template")
 	var parameterLocation = flag.String("parameters", "", "the location of the JSON parameter file. Should contain a JSON array of cloudformation.Parameter objects. See examples/parameters.json for reference. ")
-	var stackName = flag.String("name", "Iroworks", "the name of the stack to create. Defaults to Iroworks")
+	var stackName = flag.String("name", "cloudspeed", "the name of the stack to create. Defaults to cloudspeed")
 	var persist = flag.Bool("persist", false, "persist will persist the stack if successful. Defaults to false, deleting the stack after completion")
 	flag.Parse()
 	var parameters []*cloudformation.Parameter
