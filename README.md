@@ -1,5 +1,7 @@
 # Cloudspeed
 
+*Cloudspeed is a cli tool to quickly debug and create cloudformation stacks.*
+
 Cloudspeed aims to alleviate the frustration of debugging cloudformation templates. Currently the `aws cloudformation validate-template` tool just validates the file is either valid JSON or valid YAML. It doesn't validate the properties and configuration. This tool ensures the template is valid by actually creating the stack with the associated infrastructure. 
 
 Cloudspeed is more than a simple validation tool. It was specifically created to reduce stack debugging and creation time. Therefore, if the stack fails to create, the tool then outputs all of the stack events to the console before deletion. If you would like to keep the stack around after it succeeds, pass in the persist flag to ensure the infrastructure remains untouched. 
